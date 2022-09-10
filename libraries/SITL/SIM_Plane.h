@@ -92,6 +92,7 @@ protected:
     } coefficient;
 
     float thrust_scale;
+    float thrust_factor;
     bool reverse_thrust;
     bool elevons;
     bool vtail;
@@ -125,6 +126,7 @@ protected:
     Vector3f getForce(float inputAileron, float inputElevator, float inputRudder) const;
     Vector3f getTorque(float inputAileron, float inputElevator, float inputRudder, float inputThrust, const Vector3f &force) const;
     void calculate_forces(const struct sitl_input &input, Vector3f &rot_accel);
+    void load_plane_params(const char *model_json);
 };
 
 } // namespace SITL

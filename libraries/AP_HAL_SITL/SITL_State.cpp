@@ -19,6 +19,7 @@
 #include <AP_Param/AP_Param.h>
 #include <SITL/SIM_JSBSim.h>
 #include <AP_HAL/utility/Socket.h>
+#include "AP_Mount.h"
 
 extern const AP_HAL::HAL& hal;
 
@@ -317,6 +318,7 @@ void SITL_State::_output_to_flightgear(void)
         fdm.rpm[2] = constrain_float((pwm_output[6]-1000)*12, 0, 12000);
         fdm.rpm[3] = constrain_float((pwm_output[7]-1000)*12, 0, 12000);
     }
+    fdm.egt[0] = AP::mount();
     fdm.ByteSwap();
 
     fg_socket.send(&fdm, sizeof(fdm));

@@ -18,8 +18,11 @@
 */
 
 #include "SIM_Plane.h"
+#include <AP_Filesystem/AP_Filesystem.h>
 
 #include <stdio.h>
+#include <sys/stat.h>
+#include "picojson.h"
 
 using namespace SITL;
 
@@ -27,6 +30,7 @@ Plane::Plane(const char *frame_str) :
     Aircraft(frame_str)
 {
     mass = 2.0f;
+    thrust_factor = 1.0f;
 
     /*
        scaling from motor power to Newtons. Allows the plane to hold
@@ -96,6 +100,139 @@ Plane::Plane(const char *frame_str) :
         mass = 2.0;
         coefficient.c_drag_p = 0.05;
     }
+
+    const char *colon = strchr(frame_str, ':');
+    size_t slen = strlen(frame_str);
+    if (colon != nullptr && slen > 5 && strcmp(&frame_str[slen-5], ".json") == 0)
+        load_plane_params(colon+1);
+    thrust_scale *= thrust_factor;
+}
+
+
+/*
+  load plane specific parameters from a json file if available
+ */
+void Plane::load_plane_params(const char *model_json)
+{
+    char *fname = nullptr;
+    struct stat st;
+    if (AP::FS().stat(model_json, &st) == 0) {
+        fname = strdup(model_json);
+    } else {
+        IGNORE_RETURN(asprintf(&fname, "@ROMFS/models/%s", model_json));
+        if (AP::FS().stat(model_json, &st) != 0) {
+            AP_HAL::panic("%s failed to load\n", model_json);
+        }
+    }
+    if (fname == nullptr) {
+        AP_HAL::panic("%s failed to load\n", model_json);
+    }
+    ::printf("Loading model %s\n", fname);
+    int fd = AP::FS().open(model_json, O_RDONLY);
+    if (fd == -1) {
+        AP_HAL::panic("%s failed to load\n", model_json);
+    }
+    char buf[st.st_size+1];
+    memset(buf, '\0', sizeof(buf));
+    if (AP::FS().read(fd, buf, st.st_size) != st.st_size) {
+        AP_HAL::panic("%s failed to load\n", model_json);
+    }
+    AP::FS().close(fd);
+
+    char *start = strchr(buf, '{');
+    if (!start) {
+        AP_HAL::panic("Invalid json %s", model_json);
+    }
+    free(fname);
+
+    /*
+      remove comments, as not allowed by the parser
+     */
+    for (char *p = strchr(start,'#'); p; p=strchr(p+1, '#')) {
+        // clear to end of line
+        do {
+            *p++ = ' ';
+        } while (*p != '\n' && *p != '\r' && *p);
+    }
+
+    picojson::value obj;
+    std::string err = picojson::parse(obj, start);
+    if (!err.empty()) {
+        AP_HAL::panic("Failed to load %s: %s", model_json, err.c_str());
+        exit(1);
+    }
+
+    struct {
+        const char *label;
+        float &v;
+    } vars[] = {
+        { "mass", mass },
+        { "external_payload_mass", external_payload_mass },
+
+        // { "angle_of_attack", angle_of_attack },
+        // { "beta", beta },
+        { "thrust_factor", thrust_factor },
+        { "launch_accel", launch_accel },
+        { "launch_time", launch_time },
+
+#define PLANECOEF_VAR(s) { #s, coefficient.s }
+        PLANECOEF_VAR(s),
+        PLANECOEF_VAR(b),
+        PLANECOEF_VAR(c),
+        PLANECOEF_VAR(c_lift_0),
+        PLANECOEF_VAR(c_lift_deltae),
+        PLANECOEF_VAR(c_lift_a),
+        PLANECOEF_VAR(c_lift_q),
+        PLANECOEF_VAR(mcoeff),
+        PLANECOEF_VAR(oswald),
+        PLANECOEF_VAR(alpha_stall),
+        PLANECOEF_VAR(c_drag_q),
+        PLANECOEF_VAR(c_drag_deltae),
+        PLANECOEF_VAR(c_drag_p),
+        PLANECOEF_VAR(c_y_0),
+        PLANECOEF_VAR(c_y_b),
+        PLANECOEF_VAR(c_y_p),
+        PLANECOEF_VAR(c_y_r),
+        PLANECOEF_VAR(c_y_deltaa),
+        PLANECOEF_VAR(c_y_deltar),
+        PLANECOEF_VAR(c_l_0),
+        PLANECOEF_VAR(c_l_p),
+        PLANECOEF_VAR(c_l_b),
+        PLANECOEF_VAR(c_l_r),
+        PLANECOEF_VAR(c_l_deltaa),
+        PLANECOEF_VAR(c_l_deltar),
+        PLANECOEF_VAR(c_m_0),
+        PLANECOEF_VAR(c_m_a),
+        PLANECOEF_VAR(c_m_q),
+        PLANECOEF_VAR(c_m_deltae),
+        PLANECOEF_VAR(c_n_0),
+        PLANECOEF_VAR(c_n_b),
+        PLANECOEF_VAR(c_n_p),
+        PLANECOEF_VAR(c_n_r),
+        PLANECOEF_VAR(c_n_deltaa),
+        PLANECOEF_VAR(c_n_deltar),
+        PLANECOEF_VAR(deltaa_max),
+        PLANECOEF_VAR(deltae_max),
+        PLANECOEF_VAR(deltar_max),
+        // { "CGOffset_x", CGOffset.x },
+        // { "CGOffset_y", CGOffset.y },
+        // { "CGOffset_z", CGOffset.z }
+    };
+    // static_assert(sizeof(coefficient) + 5*sizeof(float) == sizeof(float)*ARRAY_SIZE(vars), "incorrect model vars");
+
+    for (uint8_t i=0; i<ARRAY_SIZE(vars); i++) {
+        auto v = obj.get(vars[i].label);
+        if (v.is<picojson::null>()) {
+            // use default value
+            continue;
+        }
+        if (!v.is<double>()) {
+            AP_HAL::panic("Bad json type for %s: %s", vars[i].label, v.to_str().c_str());
+        }
+        vars[i].v = v.get<double>();
+    }
+
+    ::printf("Loaded model params from %s\n", model_json);
 }
 
 /*
