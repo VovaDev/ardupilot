@@ -534,6 +534,24 @@ SRV_Channels::move_servo(SRV_Channel::Aux_servo_function_t function,
     }
 }
 
+int16_t SRV_Channels::get_output_angle(SRV_Channel::Aux_servo_function_t function, int16_t angle_min, int16_t angle_max)
+{
+    int16_t angle = 0;
+    if (function_assigned(function) && angle_max > angle_min) {
+        for (uint8_t i = 0; i < NUM_SERVO_CHANNELS; i++) {
+            SRV_Channel &c = channels[i];
+            if (c.function.get() == function) {
+                uint16_t pwm = c.get_output_pwm();
+                float v = (float)(pwm - c.servo_min) / (c.servo_max - c.servo_min);
+                v = constrain_float(v, 0.0f, 1.0f);
+                v = c.get_reversed()? (1-v) : v;
+                angle = angle_min + v * (angle_max - angle_min);
+            }
+        }
+    }
+    return angle;
+}
+
 /*
   set the default channel an auxiliary output function should be on
  */

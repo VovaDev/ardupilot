@@ -392,6 +392,8 @@ public:
     // Value is taken from pwm value.  Returns zero on error.
     static float get_output_norm(SRV_Channel::Aux_servo_function_t function);
 
+    static int16_t get_output_angle(SRV_Channel::Aux_servo_function_t function, int16_t angle_min, int16_t angle_max);
+
     // set normalised output (-1 to 1 with 0 at mid point of servo_min/servo_max) for the given function
     static void set_output_norm(SRV_Channel::Aux_servo_function_t function, float value);
 

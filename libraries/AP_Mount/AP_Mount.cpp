@@ -1053,6 +1053,15 @@ void AP_Mount::convert_params()
     }
 }
 
+Vector3f AP_Mount::get_target_angle()
+{
+	Vector3f angle(0.f,0.f,0.f); 
+	bool yaw_is_earth_frame = false;
+	if(_backends[0] != nullptr)
+		_backends[0]->get_angle_target(angle.x, angle.y, angle.z, yaw_is_earth_frame);
+	return angle;
+}
+
 // singleton instance
 AP_Mount *AP_Mount::_singleton;
 

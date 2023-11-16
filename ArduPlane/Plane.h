@@ -1249,6 +1249,9 @@ public:
     bool set_land_descent_rate(float descent_rate) override;
 #endif // AP_SCRIPTING_ENABLED
 
+#if HAL_MOUNT_ENABLED
+    AP_Mount* get_cam() override {return &camera_mount;};//dakar
+#endif
 };
 
 extern Plane plane;

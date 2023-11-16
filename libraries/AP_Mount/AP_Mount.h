@@ -269,6 +269,7 @@ public:
     // parameter var table
     static const struct AP_Param::GroupInfo        var_info[];
 
+	Vector3f get_target_angle();
 protected:
 
     static AP_Mount *_singleton;

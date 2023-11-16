@@ -19,7 +19,9 @@
 #include <AP_Param/AP_Param.h>
 #include <SITL/SIM_JSBSim.h>
 #include <AP_HAL/utility/Socket.h>
-#include "AP_Mount.h"
+#include <AP_Mount/AP_Mount.h>
+#include <AP_Math/AP_Math.h>
+#include <AP_Vehicle/AP_Vehicle.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -290,7 +292,7 @@ bool SITL_State::_read_rc_sitl_input()
 /*
   output current state to flightgear
  */
-void SITL_State::_output_to_flightgear(void)
+void SITL_State::_output_to_flightgear(const struct sitl_input &input)
 {
     SITL::FGNetFDM fdm {};
     const SITL::sitl_fdm &sfdm = _sitl->state;
@@ -318,9 +320,41 @@ void SITL_State::_output_to_flightgear(void)
         fdm.rpm[2] = constrain_float((pwm_output[6]-1000)*12, 0, 12000);
         fdm.rpm[3] = constrain_float((pwm_output[7]-1000)*12, 0, 12000);
     }
-    fdm.egt[0] = AP::mount();
-    fdm.ByteSwap();
 
+	if (_vehicle == ArduPlane) {
+		AP_Mount *cam=AP::vehicle()->get_cam();
+		Vector3f angle=cam->get_target_angle();
+		fdm.egt[0] = angle.x;//0.0f;	
+        fdm.egt[1] = angle.y;//camponitc *180.0/M_PI
+		fdm.egt[2] = angle.z;//camponita *180.0/M_PI
+        float aileron = sitl_model->filtered_servo_angle(input, 0);
+        float elevator = sitl_model->filtered_servo_angle(input, 1);
+        float rudder   = sitl_model->filtered_servo_angle(input, 3);
+
+        // TODO
+        if (strstr(sitl_model->frame, "elevon")) {
+            // fake an elevon plane
+            float ch1 = aileron;
+            float ch2 = elevator;
+            aileron  = (ch2-ch1)/2.0f;
+            // the minus does away with the need for RC2_REVERSED=-1
+            elevator = -(ch2+ch1)/2.0f;
+        } else if (strstr(sitl_model->frame, "vtail")) {
+            // fake a vtail plane
+            float ch1 = elevator;
+            float ch2 = rudder;
+            // this matches VTAIL_OUTPUT==2
+            elevator = (ch2-ch1)/2.0f;
+            rudder   = (ch2+ch1)/2.0f;
+        }
+        
+        fdm.left_aileron  = -aileron;
+        fdm.right_aileron  = aileron;
+        fdm.elevator = elevator;
+        fdm.rudder = rudder;
+	}
+
+    fdm.ByteSwap();
     fg_socket.send(&fdm, sizeof(fdm));
 }
 
@@ -376,7 +410,7 @@ void SITL_State::_fdm_input_local(void)
     sim_update();
 
     if (_sitl && _use_fg_view) {
-        _output_to_flightgear();
+        _output_to_flightgear(input);
     }
 
     // update simulation time

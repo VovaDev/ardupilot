@@ -1,0 +1,1 @@
+./waf configure --board=sitl --toolchain x86_64-pc-cygwin

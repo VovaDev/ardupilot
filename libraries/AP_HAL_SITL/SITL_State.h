@@ -71,7 +71,7 @@ private:
     void _check_rc_input(void);
     bool _read_rc_sitl_input();
     void _fdm_input_local(void);
-    void _output_to_flightgear(void);
+    void _output_to_flightgear(const struct sitl_input &input);
     void _simulator_servos(struct sitl_input &input);
     void _fdm_input_step(void);
 

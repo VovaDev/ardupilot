@@ -54,6 +54,7 @@
 #include <AP_VideoTX/AP_SmartAudio.h>
 #include <AP_VideoTX/AP_Tramp.h>
 #include <AP_TemperatureSensor/AP_TemperatureSensor.h>
+#include <AP_Mount/AP_Mount.h>
 #include <SITL/SITL.h>
 #include <AP_CustomRotations/AP_CustomRotations.h>
 #include <AP_AIS/AP_AIS.h>
@@ -253,6 +254,8 @@ public:
 #if HAL_WITH_FRSKY_TELEM_BIDIRECTIONAL
     AP_Frsky_Parameters frsky_parameters;
 #endif
+
+    virtual AP_Mount* get_cam(){ return 0; }
 
     /*
       Returns the pan and tilt for use by onvif camera in scripting
