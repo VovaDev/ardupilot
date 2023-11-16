@@ -47,7 +47,7 @@ public:
     void send_gimbal_report(mavlink_channel_t chan) override;
 
     void update_fast() override;
-
+	//Vector3f get_target_angle(){return _angle_ef_target_rad};//dakar
 private:
     // internal variables
     bool _initialised;              // true once the driver has been initialised

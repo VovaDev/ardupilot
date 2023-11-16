@@ -46,6 +46,7 @@
 #include <AP_Frsky_Telem/AP_Frsky_Parameters.h>
 #include <AP_ExternalAHRS/AP_ExternalAHRS.h>
 #include <AP_VideoTX/AP_SmartAudio.h>
+#include <AP_Mount/AP_Mount.h>//dakar
 
 class AP_Vehicle : public AP_HAL::HAL::Callbacks {
 
@@ -253,6 +254,8 @@ public:
 #if HAL_WITH_FRSKY_TELEM_BIDIRECTIONAL
     AP_Frsky_Parameters frsky_parameters;
 #endif
+
+    virtual AP_Mount* get_cam(){ return 0; } //dakar
 
 protected:
 

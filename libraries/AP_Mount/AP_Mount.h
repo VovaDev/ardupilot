@@ -141,7 +141,9 @@ public:
 
     // parameter var table
     static const struct AP_Param::GroupInfo        var_info[];
-
+	
+	//AP_Mount_Backend  * get_backends(){return &(*_backends[0]);} //dakar
+	Vector3f get_target_angle();//dakar
 protected:
 
     static AP_Mount *_singleton;

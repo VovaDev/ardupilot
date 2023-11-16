@@ -141,6 +141,10 @@ void AP_Mount_Backend::update_targets_from_rc()
             _angle_ef_target_rad.z = angle_input_rad(pan_ch, _state._pan_angle_min, _state._pan_angle_max);
         }
     }
+	//printf("_angle_ef_target_rad= [%f,%f,%f] \n", //dakar
+	//	_angle_ef_target_rad.x*180.0/M_PI,
+	//	_angle_ef_target_rad.y*180.0/M_PI,
+	//	_angle_ef_target_rad.z*180.0/M_PI);
 }
 
 // returns the angle (radians) that the RC_Channel input is receiving

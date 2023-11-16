@@ -82,6 +82,8 @@ public:
     // send a GIMBAL_REPORT message to the GCS
     virtual void send_gimbal_report(const mavlink_channel_t chan) {}
 
+	//virtual Vector3f get_target_angle() = 0;
+    virtual Vector3f get_target_angle(){ return _angle_ef_target_rad*180.0/M_PI;} //dakar
 protected:
 
     // update_targets_from_rc - updates angle targets (i.e. _angle_ef_target_rad) using input from receiver

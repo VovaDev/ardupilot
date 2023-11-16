@@ -992,6 +992,10 @@ private:
 
 public:
     void failsafe_check();      // failsafe.cpp
+    
+#if HAL_MOUNT_ENABLED
+    AP_Mount* get_cam() override {return &camera_mount;};//dakar
+#endif
 };
 
 extern Copter copter;

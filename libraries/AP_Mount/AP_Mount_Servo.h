@@ -39,6 +39,7 @@ public:
     // send_mount_status - called to allow mounts to send their status to GCS using the MOUNT_STATUS message
     void send_mount_status(mavlink_channel_t chan) override;
 
+	Vector3f get_target_angle() override;//dakar
 private:
 
     // flags structure
@@ -68,6 +69,7 @@ private:
     SRV_Channel::Aux_servo_function_t    _open_idx;  // SRV_Channel mount open function index
 
     Vector3f _angle_bf_output_deg;  // final body frame output angle in degrees
+    Vector3f _ahrs_prev_rot = Vector3f(0,0,0);
 
     uint32_t _last_check_servo_map_ms;  // system time of latest call to check_servo_map function
 };

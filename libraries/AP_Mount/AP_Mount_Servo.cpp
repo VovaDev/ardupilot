@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "AP_Mount_Servo.h"
 #if HAL_MOUNT_ENABLED
 
@@ -113,6 +114,14 @@ void AP_Mount_Servo::update()
     move_servo(_roll_idx, _angle_bf_output_deg.x*10, _state._roll_angle_min*0.1f, _state._roll_angle_max*0.1f);
     move_servo(_tilt_idx, _angle_bf_output_deg.y*10, _state._tilt_angle_min*0.1f, _state._tilt_angle_max*0.1f);
     move_servo(_pan_idx,  _angle_bf_output_deg.z*10, _state._pan_angle_min*0.1f, _state._pan_angle_max*0.1f);
+    // printf("yaw_target = %f\n", _angle_bf_output_deg.z);
+}
+
+Vector3f AP_Mount_Servo::get_target_angle() {
+	int16_t roll = SRV_Channels::get_output_angle((SRV_Channel::Aux_servo_function_t)_roll_idx, _state._roll_angle_min*0.1f, _state._roll_angle_max*0.1f);
+	int16_t pitch = SRV_Channels::get_output_angle((SRV_Channel::Aux_servo_function_t)_tilt_idx, _state._tilt_angle_min*0.1f, _state._tilt_angle_max*0.1f);
+	int16_t yaw = SRV_Channels::get_output_angle((SRV_Channel::Aux_servo_function_t)_pan_idx, _state._pan_angle_min*0.1f, _state._pan_angle_max*0.1f);
+    return Vector3f(roll * 0.1f, pitch * 0.1f, yaw * 0.1f);
 }
 
 // set_mode - sets mount's mode
@@ -137,6 +146,8 @@ void AP_Mount_Servo::check_servo_map()
 void AP_Mount_Servo::send_mount_status(mavlink_channel_t chan)
 {
     mavlink_msg_mount_status_send(chan, 0, 0, _angle_bf_output_deg.y*100, _angle_bf_output_deg.x*100, _angle_bf_output_deg.z*100);
+	//printf("AP_Mount_Servo= [%f,%f,%f] \n", //dakar
+	//	_angle_bf_output_deg.y, _angle_bf_output_deg.x, _angle_bf_output_deg.z);
 }
 
 // stabilize - stabilizes the mount relative to the Earth's frame
@@ -145,31 +156,40 @@ void AP_Mount_Servo::send_mount_status(mavlink_channel_t chan)
 void AP_Mount_Servo::stabilize()
 {
     AP_AHRS &ahrs = AP::ahrs();
+    if (_ahrs_prev_rot.is_zero()) {
+        _ahrs_prev_rot.x = ahrs.roll;
+        _ahrs_prev_rot.y = ahrs.pitch;
+        _ahrs_prev_rot.z = ahrs.yaw;
+    }
+
     // only do the full 3D frame transform if we are doing pan control
     if (_state._stab_pan) {
         Matrix3f m;                         ///< holds 3 x 3 matrix, var is used as temp in calcs
         Matrix3f cam;                       ///< Rotation matrix earth to camera. Desired camera from input.
         Matrix3f gimbal_target;             ///< Rotation matrix from plane to camera. Then Euler angles to the servos.
-        m = ahrs.get_rotation_body_to_ned();
+        // m = ahrs.get_rotation_body_to_ned();
+        m.from_euler(ahrs.roll - _ahrs_prev_rot.x, ahrs.pitch - _ahrs_prev_rot.y, ahrs.yaw - _ahrs_prev_rot.z);
         m.transpose();
         cam.from_euler(_angle_ef_target_rad.x, _angle_ef_target_rad.y, _angle_ef_target_rad.z);
         gimbal_target = m * cam;
         gimbal_target.to_euler(&_angle_bf_output_deg.x, &_angle_bf_output_deg.y, &_angle_bf_output_deg.z);
-        _angle_bf_output_deg.x  = _state._stab_roll ? degrees(_angle_bf_output_deg.x) : degrees(_angle_ef_target_rad.x);
-        _angle_bf_output_deg.y  = _state._stab_tilt ? degrees(_angle_bf_output_deg.y) : degrees(_angle_ef_target_rad.y);
-        _angle_bf_output_deg.z = degrees(_angle_bf_output_deg.z);
+        _angle_bf_output_deg.x  = _state._stab_roll ? degrees(_angle_ef_target_rad.x = _angle_bf_output_deg.x) : degrees(_angle_ef_target_rad.x);
+        _angle_bf_output_deg.y  = _state._stab_tilt ? degrees(_angle_ef_target_rad.y = _angle_bf_output_deg.y) : degrees(_angle_ef_target_rad.y);
+        _angle_bf_output_deg.z = degrees(_angle_ef_target_rad.z = _angle_bf_output_deg.z);
     } else {
         // otherwise base mount roll and tilt on the ahrs
         // roll/tilt attitude, plus any requested angle
+        
+        if (_state._stab_roll)
+            _angle_ef_target_rad.x -= ahrs.roll - _ahrs_prev_rot.x;
+        if (_state._stab_tilt)
+            _angle_ef_target_rad.y -= ahrs.pitch - _ahrs_prev_rot.y;
+        if (_state._stab_pan)
+            _angle_ef_target_rad.z -= ahrs.yaw - _ahrs_prev_rot.z;
+
         _angle_bf_output_deg.x = degrees(_angle_ef_target_rad.x);
         _angle_bf_output_deg.y = degrees(_angle_ef_target_rad.y);
         _angle_bf_output_deg.z = degrees(_angle_ef_target_rad.z);
-        if (_state._stab_roll) {
-            _angle_bf_output_deg.x -= degrees(ahrs.roll);
-        }
-        if (_state._stab_tilt) {
-            _angle_bf_output_deg.y -= degrees(ahrs.pitch);
-        }
 
         // lead filter
         const Vector3f &gyro = ahrs.get_gyro();
@@ -186,6 +206,7 @@ void AP_Mount_Servo::stabilize()
             _angle_bf_output_deg.y -= degrees(pitch_rate) * _state._pitch_stb_lead;
         }
     }
+    _ahrs_prev_rot = Vector3f(ahrs.roll, ahrs.pitch, ahrs.yaw);
 }
 
 // closest_limit - returns closest angle to 'angle' taking into account limits.  all angles are in degrees * 10
@@ -219,6 +240,9 @@ void AP_Mount_Servo::move_servo(uint8_t function_idx, int16_t angle, int16_t ang
 {
 	// saturate to the closest angle limit if outside of [min max] angle interval
 	int16_t servo_out = closest_limit(angle, angle_min, angle_max);
+    int16_t servo_current = SRV_Channels::get_output_angle((SRV_Channel::Aux_servo_function_t)function_idx, angle_min, angle_max);
+    int16_t delta = constrain_int16(servo_out - servo_current, -_frontend._joystick_speed*0.5f, _frontend._joystick_speed*0.5f); // * 0.0001f * _frontend._joystick_speed; //  0.0001f * 100 // 0.01f
+    servo_out = servo_current + delta;
 	SRV_Channels::move_servo((SRV_Channel::Aux_servo_function_t)function_idx, servo_out, angle_min, angle_max);
 }
 #endif // HAL_MOUNT_ENABLED

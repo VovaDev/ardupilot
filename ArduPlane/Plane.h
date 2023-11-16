@@ -1160,6 +1160,9 @@ public:
     bool get_target_location(Location& target_loc) override;
 #endif // ENABLE_SCRIPTING
 
+#if HAL_MOUNT_ENABLED
+    AP_Mount* get_cam() override {return &camera_mount;};//dakar
+#endif
 };
 
 extern Plane plane;

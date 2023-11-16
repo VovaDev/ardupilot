@@ -334,7 +334,7 @@ void Gimbal::send_report(void)
                     break;
                 }
                 default:
-                    printf("Gimbal got unexpected msg %u\n", msg.msgid);
+                    //printf("Gimbal got unexpected msg %u\n", msg.msgid);//dakar
                     break;
                 }
             }

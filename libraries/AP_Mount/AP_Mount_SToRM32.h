@@ -37,6 +37,7 @@ public:
     // send_mount_status - called to allow mounts to send their status to GCS using the MOUNT_STATUS message
     void send_mount_status(mavlink_channel_t chan) override;
 
+	//Vector3f get_target_angle(){return _angle_ef_target_rad};//dakar
 private:
 
     // search for gimbal in GCS_MAVLink routing table

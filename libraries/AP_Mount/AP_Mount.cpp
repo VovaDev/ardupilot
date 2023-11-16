@@ -748,6 +748,16 @@ void AP_Mount::send_gimbal_report(mavlink_channel_t chan)
     }    
 }
 
+Vector3f AP_Mount::get_target_angle()
+{
+	Vector3f angle(0.f,0.f,0.f); 
+	if(_backends[0]!=nullptr){
+		angle=_backends[0]->get_target_angle();
+		//printf("_backends:%f,%f,%f\n",(float)angle.x,(float)angle.y,(float)angle.z);
+	}
+	// else printf("_backends = nullptr\n");
+	return angle;
+} //dakar
 
 // singleton instance
 AP_Mount *AP_Mount::_singleton;

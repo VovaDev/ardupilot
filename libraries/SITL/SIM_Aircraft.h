@@ -153,6 +153,11 @@ public:
     void set_i2c(class I2C *_i2c) { i2c = _i2c; }
 
     float get_battery_voltage() const { return battery_voltage; }
+    
+    float filtered_servo_angle(const struct sitl_input &input, uint8_t idx);
+    float filtered_servo_range(const struct sitl_input &input, uint8_t idx);
+    
+    const char *frame;
 
 protected:
     SITL *sitl;
@@ -229,7 +234,6 @@ protected:
     uint32_t last_frame_count;
     uint8_t instance;
     const char *autotest_dir;
-    const char *frame;
     bool use_time_sync = true;
     float last_speedup = -1.0f;
     const char *config_ = "";
@@ -291,8 +295,6 @@ protected:
 
     // return filtered servo input as -1 to 1 range
     float filtered_idx(float v, uint8_t idx);
-    float filtered_servo_angle(const struct sitl_input &input, uint8_t idx);
-    float filtered_servo_range(const struct sitl_input &input, uint8_t idx);
 
     // extrapolate sensors by a given delta time in seconds
     void extrapolate_sensors(float delta_time);
